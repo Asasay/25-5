@@ -1,6 +1,6 @@
 import "./App.css";
-import React from "react";
-import { useState, useRef } from "react";
+import React, { useEffect } from "react";
+import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPlay,
@@ -12,9 +12,9 @@ import {
 
 function App() {
   const [status, setStatus] = useState("session pause");
-  const [breakLength, setBreakLength] = useState(1);
-  const [sessionLength, setSessionLength] = useState(1);
-  const [timer, setTimer] = useState({ minutes: 0, seconds: 3 });
+  const [breakLength, setBreakLength] = useState(5);
+  const [sessionLength, setSessionLength] = useState(25);
+  const [timer, setTimer] = useState({ minutes: 25, seconds: 0 });
   return (
     <div className="App">
       <div id="container">
@@ -32,7 +32,9 @@ function App() {
         />
         <Timer timer={timer} status={status} />
         <Controls
+          setBreakLength={setBreakLength}
           breakLength={breakLength}
+          setSessionLength={setSessionLength}
           sessionLength={sessionLength}
           timer={timer}
           setTimer={setTimer}
@@ -46,7 +48,7 @@ function App() {
 
 function Break(props) {
   let handleClick = (e) => {
-    if (props.status == "session" || props.status == "break") return;
+    if (props.status === "session" || props.status === "break") return;
     let targetID = e.currentTarget.id;
     if (targetID === "break-increment" && props.breakLength < 60)
       props.setBreakLength(props.breakLength + 1);
@@ -71,7 +73,7 @@ function Break(props) {
 
 function Session(props) {
   let handleClick = (e) => {
-    if (props.status == "session" || props.status == "break") return;
+    if (props.status === "session" || props.status === "break") return;
     let targetID = e.currentTarget.id;
     if (targetID === "session-increment" && props.sessionLength < 60) {
       props.setTimer({ minutes: props.sessionLength + 1, seconds: 0 });
@@ -102,113 +104,78 @@ function Timer(props) {
   return (
     <div id="timer">
       <label for="time-left" id="timer-label">
-        {props.status}
+        {props.status.split(' ')[0]}
       </label>
       <p id="time-left">
-        {props.timer.minutes}:{props.timer.seconds}
+        {props.timer.minutes.toString().length === 1 ? "0" + props.timer.minutes : props.timer.minutes}:{props.timer.seconds.toString().length === 1 ? "0" + props.timer.seconds : props.timer.seconds}
       </p>
     </div>
   );
 }
 //sesp->ses->brp->br->sesp
 function Controls(props) {
-  const timerIdRef = useRef(0);
-  /* let startTimer = () => {
-    switch(props.status) {
-      case "session pause": 
-      case "break pause":
-        if (props.status==="session pause") props.setStatus('session');
-        if (props.status==="break pause") props.setStatus('break');
-        let futureDate = new Date(Date.now() + props.timer.minutes * 60000 + props.timer.seconds * 1000);
-        
-        timerUpdate = setInterval(()=>{
-          let intervalInSeconds = (futureDate-Date.now())/1000;
+  const [futureDate, setFutureDate] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCountDown(futureDate - new Date().getTime());
+    }, 500);
 
-          if (intervalInSeconds <= 0) {
-            if (props.status === "session") {
-              console.log("interval<0 " + props.status);
-              props.setStatus("break pause");
-              props.setTimer({minutes: props.breakLength, seconds: 0});
-            }
-            else if (props.status === "break") {
-              console.log("interval<0 " + props.status);
-              props.setStatus("session pause");
-              props.setTimer({minutes: props.sessionLength, seconds: 0});
-            }
-            clearInterval(timerUpdate);
-            startTimer();
-          } 
-          else {
-            props.setTimer({minutes: Math.floor(intervalInSeconds/60), seconds: Math.floor(intervalInSeconds%60)});
-          } 
-        }, 100);
-        break;
-        
-      case "session": 
-        clearInterval(timerUpdate);
-        props.setStatus('session pause');
-        break;
+    return () => clearInterval(interval);
+  }, [futureDate]);
 
-      case "break":
-        clearInterval(timerUpdate);
-        props.setStatus('break pause');
-        break;
-
-      default: return;
+  function startStop() {
+    if (props.status==="session pause") {
+      props.setStatus('session');
+      setFutureDate(new Date(Date.now() + props.timer.minutes * 60000 + props.timer.seconds * 1000));
     }
-  }; */
-  let startStop = () => {
-    switch (props.status) {
-      case "session":
-      case "break":
-        stopTimer();
-        break;
-      case "session pause":
-      case "break pause":
-        startTimer();
-        break;
-      default:
-        return;
+    else if (props.status==="break pause") {
+      props.setStatus('break');
+      setFutureDate(new Date(Date.now() + props.timer.minutes * 60000 + props.timer.seconds * 1000));}
+    else {
+      props.setStatus(props.status+" pause");
+      setFutureDate(0);
     }
-  };
-  function startTimer() {
-    let futureDate = new Date(
-      Date.now() + props.timer.minutes * 60000 + props.timer.seconds * 1000
-    );
-    props.status === "session pause" ? props.setStatus("session") : props.setStatus("break");
-    timerIdRef.current = setInterval(() => {
-      let intervalInSeconds = (futureDate - Date.now()) / 1000;
-      if (intervalInSeconds <= 0) {
-        if (props.status === "session") {
-          console.log("interval<0 " + props.status);
-          props.setStatus("break");
-          props.setTimer({ minutes: props.breakLength, seconds: 0 });
-        } else if (props.status === "break") {
-          console.log("interval<0 " + props.status);
-          props.setStatus("session");
-          props.setTimer({ minutes: props.sessionLength, seconds: 0 });
-        }
-        clearInterval(timerIdRef.current);
-        startTimer();
-      } else {
-        props.setTimer({
-          minutes: Math.floor(intervalInSeconds / 60),
-          seconds: Math.floor(intervalInSeconds % 60),
-        });
-      }
-    }, 100);
   }
-  function stopTimer() {
-    clearInterval(timerIdRef.current);
-    props.setStatus(props.status + " pause");
+  function setCountDown (interval) {
+    let intervalInSeconds = interval/1000;
+    let beep = document.getElementById("beep");
+
+    if (intervalInSeconds <= 0) {
+      if (props.status === "session") {
+        props.setStatus("break");
+        props.setTimer({minutes: props.breakLength, seconds: 0});
+        setFutureDate(new Date(Date.now() + props.breakLength * 60000));
+        beep.play();
+      }
+      else if (props.status === "break") {
+        props.setStatus("session");
+        props.setTimer({minutes: props.sessionLength, seconds: 0});
+        setFutureDate(new Date(Date.now() + props.sessionLength * 60000));
+        beep.play();
+      }
+    } 
+    else {
+      props.setTimer({minutes: Math.floor(intervalInSeconds/60), seconds: Math.floor(intervalInSeconds%60)});
+    } 
+  }
+  function reset() {
+    setFutureDate(0);
+    props.setStatus("session pause");
+    props.setSessionLength(25);
+    props.setBreakLength(5);
+    props.setTimer({minutes: 25, seconds: 0});
+    document.getElementById("beep").pause();
+    document.getElementById("beep").currentTime = 0;
   }
   return (
     <div id="controls">
-      <button id="start_stop" onClick={startStop}>
+      <audio id="beep" preload="auto" src="https://raw.githubusercontent.com/freeCodeCamp/cdn/master/build/testable-projects-fcc/audio/BeepSound.wav"></audio>
+      <button id="start_stop" onClick={startStop} >
         <FontAwesomeIcon icon={faPlay} size={"2x"} />
         <FontAwesomeIcon icon={faPause} size={"2x"} />
       </button>
-      <button id="reset">
+      <button id="reset" onClick={reset}>
         <FontAwesomeIcon icon={faRotateRight} size={"2x"} />
       </button>
     </div>
